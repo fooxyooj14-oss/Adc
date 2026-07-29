@@ -1,0 +1,95 @@
+-- ==========================================
+-- TAB 2: TELEPORT (แก้ไขบัคโลกว่างเปล่า/แมปไม่โหลด)
+-- ==========================================
+TeleportTab:CreateSection("📍 Custom Waypoints (จุดวาปส่วนตัว)")
+
+local savedCFrame = nil
+
+-- ฟังชันช่วยวาปแบบปลอดภัย (แก้ปัญหาโลกว่างเปล่า / ตกแมป)
+local function safeTeleport(targetCFrame)
+   if not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then return end
+   
+   local hrp = LocalPlayer.Character.HumanoidRootPart
+   local targetPos = targetCFrame.Position
+
+   -- 1. สร้างแผ่นพื้นลอยชั่วคราวกันตกใต้แมป
+   local platform = Instance.new("Part")
+   platform.Size = Vector3.new(15, 1, 15)
+   platform.CFrame = targetCFrame - Vector3.new(0, 3, 0)
+   platform.Anchored = true
+   platform.Transparency = 1 -- ซ่อนพื้นให้มองไม่เห็น
+   platform.Parent = workspace
+
+   -- 2. ร้องขอให้เซิร์ฟเวอร์โหลดแมปบริเวณปลายทางล่วงหน้า
+   pcall(function()
+      LocalPlayer:RequestStreamAroundAsync(targetPos)
+   end)
+
+   -- 3. ย้ายตัวละครไปยังพิกัดเป้าหมาย
+   hrp.CFrame = targetCFrame
+
+   -- 4. ลบแผ่นพื้นชั่วคราวออกหลังจากผ่านไป 3 วินาที (รอแมปจริงโหลดเสร็จ)
+   task.delay(3, function()
+      if platform then
+         platform:Destroy()
+      end
+   end)
+end
+
+TeleportTab:CreateButton({
+   Name = "📌 บันทึกจุดปัจจุบัน (Save Position)",
+   Callback = function()
+      if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+         savedCFrame = LocalPlayer.Character.HumanoidRootPart.CFrame
+         Rayfield:Notify({
+            Title = "บันทึกสำเร็จ!",
+            Content = "บันทึกพิกัดปัจจุบันเรียบร้อยแล้ว",
+            Duration = 3,
+            Image = 4483362458,
+         })
+      end
+   end,
+})
+
+TeleportTab:CreateButton({
+   Name = "🚀 วาปไปจุดที่บันทึกไว้ (Teleport Saved)",
+   Callback = function()
+      if savedCFrame then
+         safeTeleport(savedCFrame)
+      else
+         Rayfield:Notify({
+            Title = "แจ้งเตือน",
+            Content = "ยังไม่ได้บันทึกพิกัด! กดบันทึกจุดก่อนนะครับ",
+            Duration = 3,
+            Image = 4483362458,
+         })
+      end
+   end,
+})
+
+TeleportTab:CreateSection("🛡️ Safe & Preset Places")
+
+TeleportTab:CreateButton({
+   Name = "🏠 วาปกลับจุดเกิด (Spawn Place)",
+   Callback = function()
+      local spawnLocation = game:GetService("Workspace"):FindFirstChild("SpawnLocation") or game:GetService("Workspace"):FindFirstChildOfClass("SpawnLocation")
+      
+      if spawnLocation then
+         safeTeleport(spawnLocation.CFrame + Vector3.new(0, 5, 0))
+      else
+         -- หากหา SpawnLocation ในแมปไม่เจอ ให้ใช้วิธี Reset Character เพื่อกลับจุดเกิดแบบชัวร์ที่สุด
+         if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+            LocalPlayer.Character.Humanoid.Health = 0
+         end
+      end
+   end,
+})
+
+TeleportTab:CreateButton({
+   Name = "☁️ วาปขึ้นที่สูง (Safe Zone)",
+   Callback = function()
+      if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+         safeTeleport(LocalPlayer.Character.HumanoidRootPart.CFrame + Vector3.new(0, 100, 0))
+      end
+   end,
+})
